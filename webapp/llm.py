@@ -1,134 +1,149 @@
-"""Utility LLM clients for interactive experiences."""
+"""HTTP client integration for delegating prompts to LLMStudio."""
 from __future__ import annotations
 
-import json
-import re
-from typing import Any, Iterable
+import logging
+from typing import Any
+
+import httpx
 
 from job_role_analyzer.llm_interface import LLMClient
 
 
-class HeuristicLLMClient(LLMClient):
-    """Rule-based LLM client that generates deterministic outputs for demos."""
-
-    def complete(self, prompt: str, **_: Any) -> str:  # pragma: no cover - thin wrapper
-        if "core competencies" in prompt.lower():
-            return self._generate_competencies(prompt)
-        return self._summarize(prompt)
-
-    def _summarize(self, prompt: str) -> str:
-        description = _extract_section(prompt, "Job Description:")
-        sentences = _split_sentences(description)[:4]
-        summary_parts = []
-        if sentences:
-            summary_parts.append(sentences[0])
-        if len(sentences) > 1:
-            summary_parts.append(sentences[1])
-        highlighted_skills = _extract_keywords(description)[:4]
-        if highlighted_skills:
-            summary_parts.append(
-                "Key skills include " + ", ".join(highlighted_skills) + "."
-            )
-        if len(sentences) > 2:
-            summary_parts.append("Additional responsibilities span " + sentences[2].lower())
-        return " ".join(summary_parts).strip()
-
-    def _generate_competencies(self, prompt: str) -> str:
-        summary = _extract_section(prompt, "Normalized Summary:")
-        description = _extract_section(prompt, "Full Job Description:")
-        keywords = _extract_keywords("\n".join([summary, description]))
-        unique_keywords = []
-        for keyword in keywords:
-            if keyword not in unique_keywords:
-                unique_keywords.append(keyword)
-        if not unique_keywords:
-            unique_keywords = ["Communication", "Problem Solving", "Team Leadership"]
-        competencies = []
-        baseline_level = _infer_level(description)
-        for keyword in unique_keywords[:5]:
-            competencies.append(
-                {
-                    "name": keyword,
-                    "level": baseline_level,
-                    "type": _infer_type(keyword),
-                }
-            )
-        while len(competencies) < 3:
-            competencies.append(
-                {
-                    "name": f"Core Skill {len(competencies) + 1}",
-                    "level": baseline_level,
-                    "type": "technical",
-                }
-            )
-        return json.dumps(competencies)
+logger = logging.getLogger(__name__)
 
 
-def _extract_section(prompt: str, heading: str) -> str:
-    pattern = re.compile(rf"{re.escape(heading)}\s*(.*)", re.IGNORECASE | re.DOTALL)
-    match = pattern.search(prompt)
-    if not match:
-        return ""
-    text = match.group(1)
-    terminator_match = re.search(r"\n[A-Z][^\n]+:\s*$", text, re.MULTILINE)
-    if terminator_match:
-        text = text[: terminator_match.start()].strip()
-    return text.strip()
+class LLMStudioClient(LLMClient):
+    """LLM client that forwards prompts to an LLMStudio deployment over HTTP."""
 
+    def __init__(
+        self,
+        base_url: str,
+        *,
+        completion_path: str = "/api/v1/completions",
+        api_key: str | None = None,
+        model: str | None = None,
+        timeout: float = 30.0,
+    ) -> None:
+        if not base_url:
+            raise ValueError("base_url is required for LLMStudioClient")
+        self._base_url = base_url.rstrip("/")
+        self._client = httpx.Client(base_url=self._base_url, timeout=timeout)
+        self._completion_path = self._normalize_path(completion_path)
+        self._api_key = api_key
+        self._model = model
 
-def _split_sentences(text: str) -> list[str]:
-    chunks = re.split(r"(?<=[.!?])\s+", text.strip())
-    return [chunk.strip() for chunk in chunks if chunk.strip()]
+    def complete(self, prompt: str, **kwargs: Any) -> str:
+        payload: dict[str, Any] = {}
+        if self._model:
+            payload["model"] = self._model
 
+        payload.setdefault("stream", False)
+        payload_messages: list[dict[str, Any]] = [{"role": "user", "content": prompt}]
 
-def _extract_keywords(text: str) -> list[str]:
-    normalized = text.lower()
-    candidates = {
-        "python": ["python"],
-        "javascript": ["javascript", "react", "node"],
-        "system design": ["architecture", "design", "system"],
-        "data analysis": ["analytics", "data", "insights"],
-        "cloud platforms": ["aws", "azure", "gcp", "cloud"],
-        "project leadership": ["lead", "leadership", "manage"],
-        "communication": ["communication", "stakeholder", "collaborate"],
-        "testing": ["test", "qa", "quality"],
-        "security": ["security", "compliance"],
-        "devops": ["devops", "ci/cd", "pipeline"],
-    }
-    matched = []
-    for keyword, synonyms in candidates.items():
-        if any(term in normalized for term in synonyms):
-            matched.append(keyword.title())
-    if not matched:
-        words = re.findall(r"[A-Za-z]{4,}", text)
-        matched = [word.title() for word in words[:5]]
-    return matched
+        extra_payload = kwargs.get("extra_payload")
+        if isinstance(extra_payload, dict):
+            payload.update(extra_payload)
+            if isinstance(extra_payload.get("messages"), list):
+                payload_messages = extra_payload["messages"]  # type: ignore[assignment]
 
+        payload.setdefault("messages", payload_messages)
 
-def _infer_level(description: str) -> int:
-    normalized = description.lower()
-    if any(term in normalized for term in ["senior", "lead", "principal"]):
-        return 5
-    if "mid" in normalized or "intermediate" in normalized:
-        return 4
-    if "junior" in normalized or "entry" in normalized:
-        return 2
-    return 3
+        request_url = f"{self._base_url}{self._completion_path}"
+        logger.info("LLMStudio POST %s", request_url)
 
+        response = self._client.post(
+            self._completion_path,
+            json=payload,
+            headers=self._headers(),
+        )
+        response.raise_for_status()
+        text = self._extract_text(response.json())
+        if text is None:
+            raise ValueError("Unable to parse completion text from LLMStudio response")
+        return text.strip()
 
-def _infer_type(keyword: str) -> str:
-    technical_terms: Iterable[str] = {
-        "Python",
-        "Javascript",
-        "System Design",
-        "Cloud Platforms",
-        "Testing",
-        "Security",
-        "Devops",
-        "Data Analysis",
-    }
-    if keyword in technical_terms:
-        return "technical"
-    if keyword.lower() in {"communication", "project leadership"}:
-        return "leadership"
-    return "conceptual"
+    def close(self) -> None:
+        self._client.close()
+
+    def _headers(self) -> dict[str, str]:
+        headers: dict[str, str] = {"Content-Type": "application/json"}
+        if self._api_key:
+            headers["Authorization"] = f"Bearer {self._api_key}"
+        return headers
+
+    @staticmethod
+    def _normalize_path(path: str) -> str:
+        return path if path.startswith("/") else f"/{path}"
+
+    @staticmethod
+    def _extract_text(payload: Any) -> str | None:
+        if isinstance(payload, str):
+            return payload
+
+        if isinstance(payload, dict):
+            for key in ("result", "completion", "text"):
+                value = payload.get(key)
+                if isinstance(value, str):
+                    return value
+
+            choices = payload.get("choices")
+            if isinstance(choices, list):
+                for choice in choices:
+                    text = LLMStudioClient._extract_from_choice(choice)
+                    if text:
+                        return text
+
+            data_entries = payload.get("data")
+            if isinstance(data_entries, list):
+                for entry in data_entries:
+                    text = LLMStudioClient._extract_text(entry)
+                    if text:
+                        return text
+
+            message = payload.get("message")
+            if isinstance(message, dict):
+                return LLMStudioClient._extract_message_content(message)
+
+        if isinstance(payload, list):
+            texts: list[str] = []
+            for item in payload:
+                text = LLMStudioClient._extract_text(item)
+                if text:
+                    texts.append(text)
+            if texts:
+                return "".join(texts)
+
+        return None
+
+    @staticmethod
+    def _extract_from_choice(choice: Any) -> str | None:
+        if not isinstance(choice, dict):
+            return None
+        text_value = choice.get("text")
+        if isinstance(text_value, str):
+            return text_value
+        message = choice.get("message")
+        if isinstance(message, dict):
+            return LLMStudioClient._extract_message_content(message)
+        delta = choice.get("delta")
+        if isinstance(delta, dict):
+            return LLMStudioClient._extract_message_content(delta)
+        return None
+
+    @staticmethod
+    def _extract_message_content(message: dict[str, Any]) -> str | None:
+        content = message.get("content")
+        if isinstance(content, str):
+            return content
+        if isinstance(content, list):
+            parts: list[str] = []
+            for item in content:
+                if isinstance(item, str):
+                    parts.append(item)
+                elif isinstance(item, dict):
+                    text_part = item.get("text")
+                    if isinstance(text_part, str):
+                        parts.append(text_part)
+            if parts:
+                return "".join(parts)
+        return None

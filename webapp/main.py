@@ -1,6 +1,7 @@
 """FastAPI application providing a UI for the job role analyzer."""
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -12,6 +13,9 @@ from pydantic import BaseModel
 from job_role_analyzer.data_models import JobRoleWithCompetencies
 
 from .dependencies import get_analyzer
+
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 app = FastAPI(title="Job Role Analyzer")
 app.add_middleware(
@@ -70,6 +74,10 @@ async def analyze(request: AnalyzeRequest, analyzer=Depends(get_analyzer)) -> An
 
 
 @app.on_event("shutdown")
-async def close_database() -> None:
+async def close_dependencies() -> None:
     analyzer = get_analyzer()
     analyzer.db.close()
+    llm_client = analyzer.llm_interface.client
+    close = getattr(llm_client, "close", None)
+    if callable(close):
+        close()

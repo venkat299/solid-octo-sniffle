@@ -1,5 +1,5 @@
 from .analyzer import JobRoleAnalyzer
-from .config import AnalyzerConfig, load_config
+from .config import AnalyzerConfig, LLMEndpointConfig, load_config
 from .data_models import Competency, JobRoleSummary, JobRoleWithCompetencies
 from .db import Database
 from .llm_interface import LLMInterface, LLMClient, TemplateRenderer
@@ -14,6 +14,7 @@ __all__ = [
     "JobRoleAnalyzer",
     "JobRoleSummary",
     "JobRoleWithCompetencies",
+    "LLMEndpointConfig",
     "LLMClient",
     "LLMInterface",
     "SentenceTransformerEmbeddingProvider",

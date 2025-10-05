@@ -20,5 +20,5 @@ Memory Handling	Keep memory abstraction configurable via env vars
 Time Management	Implement clear timeout logic per competency/question
 Interrupt Recovery	Use checkpoint-based memory saving strategy
 Comments	Use compact end-of-line comments for clarity and brevity
-LLM Configuration Ensure each major module can specify its own LLM provider/model via config entries so that different functionalities may use distinct models configurable through the config file.
-
+LLM Configuration	Define module-specific endpoints via the `llm_targets` mapping in `config.yaml`; each major module must declare its own base URL, model, and timeout values.
+UI Theming	Default all web UI surfaces to a light theme; avoid dark-only styling and ensure inputs, panels, and text meet accessibility contrast in the light palette.

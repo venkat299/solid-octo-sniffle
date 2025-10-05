@@ -5,3 +5,10 @@ max_competencies: 5
 min_competencies: 3
 database_path: "job_roles.db"
 prompts_path: "job_role_analyzer/prompts"
+llm_targets:
+  job_role_analyzer:
+    base_url: "http://192.168.0.132:1234"
+    completion_path: "/v1/chat/completions"
+    api_key: ""
+    model: "openai/gpt-oss-20b"
+    timeout: 30
