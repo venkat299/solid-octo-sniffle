@@ -1,0 +1,8 @@
+You are an assistant that distills job descriptions into concise role summaries.
+Summarize the following job description, highlighting:
+- Key responsibilities
+- Primary technologies or domains mentioned
+- Expected seniority or experience context
+
+Job Description:
+{{ job_description }}

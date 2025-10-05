@@ -1,0 +1,16 @@
+You are an assistant that identifies core competencies required for a role.
+Given the job title, normalized summary, and years of experience, list between 3 and 5 competencies.
+Each competency must have a name, an optional type (technical, conceptual, leadership, etc.), and a proficiency level from 1 (novice) to 5 (expert).
+
+Return the competencies in JSON array format with the schema:
+[
+  {"name": "", "level": 1-5, "type": "optional"}
+]
+
+Job Title: {{ job_title }}
+Years of Experience: {{ years_of_experience }}
+Normalized Summary:
+{{ normalized_summary }}
+
+Full Job Description:
+{{ job_description }}

@@ -20,3 +20,5 @@ Memory Handling	Keep memory abstraction configurable via env vars
 Time Management	Implement clear timeout logic per competency/question
 Interrupt Recovery	Use checkpoint-based memory saving strategy
 Comments	Use compact end-of-line comments for clarity and brevity
+LLM Configuration Ensure each major module can specify its own LLM provider/model via config entries so that different functionalities may use distinct models configurable through the config file.
+

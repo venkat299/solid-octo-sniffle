@@ -1,0 +1,7 @@
+job_role_similarity_threshold: 0.85
+embedding_model: "BAAI/bge-small-en"
+similarity_backend: "faiss"
+max_competencies: 5
+min_competencies: 3
+database_path: "job_roles.db"
+prompts_path: "job_role_analyzer/prompts"
