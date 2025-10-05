@@ -1,0 +1,22 @@
+Instruction 2: Coding Standards and Expectations
+📏 General Coding Standards
+
+Follow clean code principles: clear naming, single responsibility, DRY
+
+Emphasize modular structure for reusability and testability
+
+Maintain separation of concerns across all layers:
+
+Logic, Data, Config, Prompts, LLM calls should be separate
+
+🧱 Code Structure Guidelines
+Component	Guideline
+Modules	One module per logical responsibility (e.g., job_parser.py, rubric_evaluator.py)
+Prompts	Use a dedicated prompts/ folder with clear, modular prompt templates
+LLM Calls	Centralize LLM interaction via a llm_interface.py or service class
+LangChain Setup	Agents, tools, and chains should be modular and swappable
+Data Models	Use pydantic for all input/output schemas and validation
+Memory Handling	Keep memory abstraction configurable via env vars
+Time Management	Implement clear timeout logic per competency/question
+Interrupt Recovery	Use checkpoint-based memory saving strategy
+Comments	Use compact end-of-line comments for clarity and brevity

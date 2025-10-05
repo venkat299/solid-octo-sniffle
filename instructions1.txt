@@ -1,0 +1,181 @@
+✅ Instruction 1: System Design Modules and Architecture
+🎯 Objective
+
+Design a 15–25 minute AI-powered technical interview system that mimics a skilled human interviewer to evaluate candidates’ skill and competency levels using:
+
+LangChain for orchestration
+
+SQLite for data persistence
+
+Pydantic for data modeling and validation
+
+🧩 Core Modules Breakdown
+1. Job Role Analyzer Module
+
+Purpose: Accept a structured job description input and generate a reusable internal summary.
+
+Inputs: Job Title, Job Description Text, Years of Experience
+
+Functionality:
+
+Generate a concise Job Role Summary using LLM.
+
+Extract relevant competencies (3–5) based on JD + experience.
+
+Save job role and competencies in DB.
+
+On similar job inputs, retrieve existing job role and competencies.
+
+2. Competency Management Module
+
+Purpose: Generate, manage, and store the competencies and their levels.
+
+Outputs: 3–5 core competencies graded on a 1–5 scale
+
+Features:
+
+LLM-generated competencies
+
+Admin review/edit capabilities
+
+Stored with versioning for audit
+
+Competencies linked to Job Role ID
+
+3. Question Strategy Module
+
+Purpose: Define and manage question types and map them to competencies.
+
+Supported Types (admin-editable):
+
+Conceptual
+
+Reasoning
+
+Practical Coding
+
+Debugging
+
+System Design
+
+Features:
+
+Competency → Recommended question types
+
+Admin can add/remove question types
+
+Each question type has a predefined rubric template (scored 1–5)
+
+4. Resume Personalization Module
+
+Purpose: Analyze candidate resume and align it with selected competencies.
+
+Functionality:
+
+Extract projects, skills, and experience details from resume
+
+Generate personalized opening questions for each competency
+
+Use context to create follow-up and deeper-dive questions
+
+5. Interview Engine Module
+
+Purpose: Conduct the interview in a natural, adaptive manner using LLM.
+
+Flow:
+
+Ask a broad question for a competency
+
+Score using rubric
+
+Based on score:
+
+If low: guide, rephrase, or give hint
+
+If mid: follow up for clarity
+
+If high: probe deeper or move on
+
+Continue until rubric is complete or time budget exceeded
+
+Persona Config: Agent persona (e.g., friendly, firm) should be configurable
+
+6. Rubric Evaluator Module
+
+Purpose: Evaluate responses using standardized rubrics tied to question types.
+
+Scoring: 1–5 per competency per question
+
+Features:
+
+Admin-editable rubrics
+
+Audit trail with rubric versioning
+
+Automated follow-up based on score
+
+7. LangChain Orchestrator Module
+
+Purpose: Manage tools, memory, agents, and the overall interview state.
+
+Components:
+
+Flow Manager Agent
+
+Tools: JD Parser, Resume Parser, Competency Generator, Question Generator, Evaluator
+
+Memory: Entity + Checkpoint memory
+
+Features:
+
+Interrupt-resilient (auto resume from checkpoints)
+
+Modular, reusable tools
+
+Tracks asked questions, filled rubrics, time spent
+
+8. Admin Control Panel Module
+
+Purpose: Provide a UI/API to control all configurable aspects.
+
+Capabilities:
+
+Edit competencies, rubrics, and question types
+
+Version control + audit history
+
+Monitor interview progress
+
+Modify agent persona settings
+
+9. Persistence Layer (SQLite + Pydantic)
+
+Purpose: Store all structured data in a normalized and validated format.
+
+Stores:
+
+Job role summaries
+
+Competency frameworks
+
+Rubrics & scores
+
+Interview sessions and state
+
+Resume insights
+
+10. Config & Resume Module
+
+Purpose: Handle configuration, environment variables, and app-wide settings.
+
+Responsibilities:
+
+Centralized configuration management
+
+Persona presets
+
+Prompt templates
+
+LangChain settings (API keys, memory type, tools)
+
+Auto-load configs on app start
